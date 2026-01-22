@@ -24,6 +24,7 @@ coverage.xml
 # IDEs
 .vscode/
 .idea/
+.serena/
 *.swp
 *.swo
 *~
@@ -112,3 +113,9 @@ batch_twist1_to_csv.py
 yaml_to_flat_csv.py
 
 compute_rotation.py
+
+# Local-only docs and tests
+docs/
+tests/
+AGENTS.md
+plan.md

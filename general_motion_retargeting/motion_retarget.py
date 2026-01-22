@@ -104,8 +104,36 @@ class GeneralMotionRetargeting:
         
         self.ground_offset = 0.0
 
+    def _initialize_configuration_within_joint_limits(self):
+        qpos = self.configuration.data.qpos
+
+        for j in range(self.model.njnt):
+            jtype = self.model.jnt_type[j]
+            if jtype not in (mj.mjtJoint.mjJNT_HINGE, mj.mjtJoint.mjJNT_SLIDE):
+                continue
+            if not self.model.jnt_limited[j]:
+                continue
+
+            lo, hi = self.model.jnt_range[j]
+            adr = self.model.jnt_qposadr[j]
+            val = float(qpos[adr])
+            if lo <= val <= hi:
+                continue
+
+            val = float(np.clip(0.0, lo, hi))
+            span = float(hi - lo)
+            eps = 1e-6 * (abs(span) if abs(span) > 1e-12 else 1.0)
+            if val <= lo:
+                val = lo + eps
+            elif val >= hi:
+                val = hi - eps
+            qpos[adr] = val
+
+        mj.mj_forward(self.model, self.configuration.data)
+
     def setup_retarget_configuration(self):
         self.configuration = mink.Configuration(self.model)
+        self._initialize_configuration_within_joint_limits()
     
         self.tasks1 = []
         self.tasks2 = []

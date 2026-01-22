@@ -1,3 +1,15 @@
+import os
+
+import pytest
+
+# This test opens an interactive Matplotlib window and is primarily meant for manual, local verification.
+# Skip by default unless explicitly enabled.
+if os.environ.get("POSELIB_RUN_PLOTTER_TESTS") != "1":
+    pytest.skip(
+        "Skipping interactive plotter test (set POSELIB_RUN_PLOTTER_TESTS=1 to enable).",
+        allow_module_level=True,
+    )
+
 from typing import cast
 
 import matplotlib.pyplot as plt
