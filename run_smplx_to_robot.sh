@@ -8,4 +8,3 @@ python scripts/smplx_to_robot.py \
   #--rate_limit 
   #--save_path "<OPTIONAL_OUTPUT.pkl>" \
   #--record_video \
-

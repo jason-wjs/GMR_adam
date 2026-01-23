@@ -173,6 +173,10 @@ This repo is licensed under the [MIT License](LICENSE).
 | More robots coming soon ! |
 | 18 | AgiBot A2 `agibot_a2` | TBD | TBD | TBD | TBD | TBD |
 | 19 | OpenLoong `openloong` | TBD | TBD | TBD | TBD | TBD |
+| 20 | PND ADAM Pro 29DoF `adam_pro_29dof` | 29 | ✅ | ✅ | TBD | TBD | TBD |
+| 21 | PND ADAM Pro w/ hands `adam_pro_29dof_with_hands` | 55 | ✅ | ✅ | TBD | TBD | TBD |
+| 22 | PND ADAM SP 29DoF `adam_sp_29dof` | 29 | ✅ | ✅ | TBD | TBD | TBD |
+| 23 | PND ADAM SP w/ hands `adam_sp_29dof_with_hands` | 53 | ✅ | ✅ | TBD | TBD | TBD |
 
 
 
@@ -285,13 +289,19 @@ You should be able to see the retargeted robot motion in a mujoco window.
 Retarget a single motion:
 
 ```bash
-python scripts/smplx_to_robot.py --smplx_file <path_to_smplx_data> --robot <path_to_robot_data> --save_path <path_to_save_robot_data.pkl> --rate_limit
+python scripts/smplx_to_robot.py --smplx_file <path_to_smplx_data> --robot <robot_name> --save_path <path_to_save_robot_data.pkl> --rate_limit
 ```
 
 By default you should see the visualization of the retargeted robot motion in a mujoco window.
 If you want to record video, add `--record_video` and `--video_path <your_video_path,mp4>`.
 
 - `--rate_limit` is used to limit the rate of the retargeted robot motion to keep the same as the human motion. If you want it as fast as possible, remove `--rate_limit`.
+
+Example (ADAM Pro, 29DoF):
+
+```bash
+python scripts/smplx_to_robot.py --smplx_file <path_to_smplx_data> --robot adam_pro_29dof --rate_limit
+```
 
 Retarget a folder of motions:
 
@@ -328,13 +338,18 @@ Retarget a single motion:
 
 ```bash
 # single motion
-python scripts/bvh_to_robot.py --bvh_file <path_to_bvh_data> --robot <path_to_robot_data> --save_path <path_to_save_robot_data.pkl> --rate_limit --format <format>
+python scripts/bvh_to_robot.py --bvh_file <path_to_bvh_data> --robot <robot_name> --save_path <path_to_save_robot_data.pkl> --rate_limit --format <format>
 ```
 
 By default you should see the visualization of the retargeted robot motion in a mujoco window. 
 - `--rate_limit` is used to limit the rate of the retargeted robot motion to keep the same as the human motion. If you want it as fast as possible, remove `--rate_limit`.
 - `--format` is used to specify the format of the BVH data. Supported formats are `lafan1` and `nokov`.
 
+Example (ADAM Pro, LAFAN1):
+
+```bash
+python scripts/bvh_to_robot.py --bvh_file <path_to_bvh_data> --format lafan1 --robot adam_pro_29dof --rate_limit
+```
 
 Retarget a folder of motions:
 
