@@ -281,6 +281,24 @@ bash teleop.sh
 ```
 You should be able to see the retargeted robot motion in a mujoco window.
 
+For GMR live stream retargeting (including recording), run:
+```bash
+bash run_pico_live_stream.sh
+```
+
+Key live flags in `scripts/xrobot_live_to_robot.py`:
+- `--record_with_controller`: enable controller-driven episode recording.
+- `--root_z_comp`: root Z compensation in meters (for floor contact tuning, e.g. `-0.03`).
+- `--session_dir`: output folder for saved live episodes.
+
+Controller workflow:
+- `A` (right `key_one`): start/stop episode buffer.
+- `B` (right `key_two`): save buffered episode.
+- `Y` (left `key_two`): discard buffered episode.
+
+Saved outputs are GMR `.pkl` plus sidecar `.json` metadata in `--session_dir`.
+PICO support in this repo is live-stream focused (offline PICO conversion scripts are removed).
+
 ### Retargeting from SMPL-X (AMASS, OMOMO) to Robot
 
 > [!NOTE]

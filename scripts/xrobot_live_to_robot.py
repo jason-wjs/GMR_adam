@@ -1,4 +1,6 @@
 import argparse
+import json
+import pickle
 import time
 
 import numpy as np
@@ -7,6 +9,12 @@ from rich import print
 from general_motion_retargeting import GeneralMotionRetargeting as GMR
 from general_motion_retargeting import RobotMotionViewer, XRobotStreamer
 from general_motion_retargeting.params import IK_CONFIG_DICT
+from live_record_controls import (
+    ButtonEdgeDetector,
+    LiveEpisodeBuffer,
+    build_episode_paths,
+    make_episode_stem,
+)
 
 
 def parse_args():
@@ -76,7 +84,56 @@ def parse_args():
         action="store_true",
         help="Print simple FPS stats.",
     )
+    parser.add_argument(
+        "--root_z_comp",
+        type=float,
+        default=0.0,
+        help="Additive root Z compensation (meters) applied to retargeted qpos.",
+    )
+    parser.add_argument(
+        "--record_with_controller",
+        action="store_true",
+        help="Enable controller-button recording during live stream.",
+    )
+    parser.add_argument(
+        "--session_dir",
+        type=str,
+        default="converted_motions/pico_live",
+        help="Folder to save recorded live episodes.",
+    )
+    parser.add_argument(
+        "--save_on_exit",
+        action="store_true",
+        help="Auto-save current buffered episode when exiting with Ctrl+C.",
+    )
     return parser.parse_args()
+
+
+def save_recorded_episode(recorder, args, episode_index):
+    stem = make_episode_stem(args.robot, episode_index)
+    pkl_path, meta_path = build_episode_paths(args.session_dir, stem)
+
+    motion_data = recorder.to_motion_data(fps=args.target_fps)
+    metadata = recorder.to_metadata(
+        robot=args.robot,
+        actual_human_height=args.actual_human_height,
+        fps=args.target_fps,
+    )
+    metadata["record_controls"] = {
+        "start_stop": "RightController.key_one (A)",
+        "save": "RightController.key_two (B)",
+        "discard": "LeftController.key_two (Y)",
+    }
+
+    with pkl_path.open("wb") as file:
+        pickle.dump(motion_data, file)
+    with meta_path.open("w", encoding="utf-8") as file:
+        json.dump(metadata, file, indent=2)
+
+    print(f"[record] Saved {recorder.frame_count} frames -> {pkl_path}")
+    print(f"[record] Metadata -> {meta_path}")
+    recorder.discard()
+    return episode_index + 1
 
 
 def main():
@@ -103,10 +160,19 @@ def main():
 
     last_time = time.time()
     frame_count = 0
+    button_detector = ButtonEdgeDetector()
+    recorder = LiveEpisodeBuffer()
+    episode_index = 1
+
+    if args.record_with_controller:
+        print("[record] Controller recording enabled:")
+        print("  - A (right key_one): start/stop episode")
+        print("  - B (right key_two): save buffered episode")
+        print("  - Y (left key_two): discard buffered episode")
 
     try:
         while True:
-            body_pose_dict, left_hand, right_hand, controller_data, headset_pose = streamer.get_current_frame()
+            body_pose_dict, _, _, controller_data, _ = streamer.get_current_frame()
             if body_pose_dict is None:
                 time.sleep(0.01)
                 continue
@@ -115,6 +181,8 @@ def main():
                 body_pose_dict,
                 offset_to_ground=not args.no_offset_to_ground,
             )
+            if args.root_z_comp != 0.0:
+                qpos[2] += args.root_z_comp
 
             viewer.step(
                 root_pos=qpos[:3],
@@ -128,6 +196,40 @@ def main():
                 follow_camera=not args.no_follow_camera,
             )
 
+            if args.record_with_controller:
+                timestamp_ns = None
+                if isinstance(controller_data, dict):
+                    timestamp_ns = controller_data.get("timestamp")
+
+                if button_detector.rising_edge(controller_data, "RightController", "key_one"):
+                    if recorder.is_recording:
+                        recorder.stop()
+                        print(
+                            f"[record] Episode stopped ({recorder.frame_count} frames). "
+                            "Press B to save or Y to discard."
+                        )
+                    else:
+                        recorder.start()
+                        print("[record] Episode started.")
+
+                if recorder.is_recording:
+                    recorder.append(qpos, timestamp_ns=timestamp_ns)
+
+                if button_detector.rising_edge(controller_data, "RightController", "key_two"):
+                    if recorder.is_recording:
+                        recorder.stop()
+                    if recorder.has_episode:
+                        episode_index = save_recorded_episode(recorder, args, episode_index)
+                    else:
+                        print("[record] No buffered episode to save.")
+
+                if button_detector.rising_edge(controller_data, "LeftController", "key_two"):
+                    if recorder.is_recording or recorder.has_episode:
+                        recorder.discard()
+                        print("[record] Buffered episode discarded.")
+                    else:
+                        print("[record] No buffered episode to discard.")
+
             if args.measure_fps:
                 frame_count += 1
                 now = time.time()
@@ -138,6 +240,11 @@ def main():
                     last_time = now
     except KeyboardInterrupt:
         print("\n[bold yellow]Exiting...[/bold yellow]")
+        if args.record_with_controller and args.save_on_exit:
+            if recorder.is_recording:
+                recorder.stop()
+            if recorder.has_episode:
+                episode_index = save_recorded_episode(recorder, args, episode_index)
     finally:
         viewer.close()
 
